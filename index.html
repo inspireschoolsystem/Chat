@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="ur">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chat & Call App</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    height: 100vh;
+    overflow: hidden;
+  }
+  .screen { height: 100vh; display: flex; align-items: center; justify-content: center; }
+
+  /* ---------- LOGIN CARD ---------- */
+  .card {
+    background: #fff;
+    padding: 30px 25px;
+    border-radius: 16px;
+    width: 90%;
+    max-width: 380px;
+    box-shadow: 0 15px 40px rgba(0,0,0,.25);
+  }
+  .card h1 { text-align: center; margin-bottom: 20px; color: #4a3aff; font-size: 24px; }
+  .label { font-size: 13px; color: #666; margin-bottom: 5px; display: block; font-weight: 600; }
+  .card input {
+    width: 100%;
+    padding: 12px;
+    border: 1.5px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+    margin-bottom: 8px;
+    outline: none;
+  }
+  .card input:focus { border-color: #4a3aff; }
+  .hint { font-size: 11px; color: #999; margin-bottom: 8px; }
+  .card button {
+    width: 100%;
+    padding: 13px;
+    margin-top: 12px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform .15s;
+  }
+  .card button:hover { transform: translateY(-2px); }
+  .status { text-align: center; font-size: 12px; margin-top: 12px; color: #666; }
+
+  /* ---------- CHAT SCREEN ---------- */
+  #chatScreen { padding: 0; }
+  .chat-container {
+    width: 100%; max-width: 600px;
+    height: 100vh; background: #f0f2f5;
+    display: flex; flex-direction: column;
+  }
+  .chat-header {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff; padding: 14px 18px;
+    display: flex; justify-content: space-between; align-items: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,.15);
+  }
+  .chat-header strong { font-size: 16px; display: block; }
+  .chat-header span { font-size: 11px; opacity: .85; }
+  .chat-header button {
+    background: rgba(255,255,255,.2);
+    border: none; color: #fff;
+    font-size: 20px; padding: 8px 12px;
+    border-radius: 50%; margin-left: 8px;
+    cursor: pointer; transition: .2s;
+  }
+  .chat-header button:hover { background: rgba(255,255,255,.35); }
+
+  .messages {
+    flex: 1; overflow-y: auto;
+    padding: 15px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .message {
+    max-width: 75%; padding: 10px 14px;
+    border-radius: 14px; font-size: 14px;
+    line-height: 1.4; word-wrap: break-word;
+    animation: pop .2s ease;
+  }
+  @keyframes pop { from { transform: scale(.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .message.sent {
+    align-self: flex-end;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff; border-bottom-right-radius: 4px;
+  }
+  .message.received {
+    align-self: flex-start;
+    background: #fff; color: #333;
+    border-bottom-left-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.1);
+  }
+  .message.media { padding: 5px; background: #fff; }
+  .message.media img, .message.media video {
+    max-width: 100%; border-radius: 10px; display: block;
+    max-height: 260px;
+  }
+
+  .input-area {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px; background: #fff;
+    border-top: 1px solid #e4e6eb;
+  }
+  .input-area input[type=text] {
+    flex: 1; padding: 11px 15px;
+    border: 1.5px solid #ddd;
+    border-radius: 22px; outline: none;
+    font-size: 14px;
+  }
+  .input-area input[type=text]:focus { border-color: #4a3aff; }
+  .input-area button {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff; border: none;
+    width: 42px; height: 42px;
+    border-radius: 50%; font-size: 18px;
+    cursor: pointer; flex-shrink: 0;
+    transition: transform .15s;
+  }
+  .input-area button:hover { transform: scale(1.08); }
+
+  /* ---------- CALL OVERLAY ---------- */
+  .overlay {
+    position: fixed; inset: 0;
+    background: rgba(10,10,20,.95);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    z-index: 1000;
+  }
+  #remoteVideo {
+    width: 90%; max-width: 500px;
+    max-height: 55vh; border-radius: 14px;
+    background: #000;
+  }
+  #localVideo {
+    position: absolute; top: 15px; right: 15px;
+    width: 110px; height: 150px;
+    border-radius: 10px; background: #000;
+    object-fit: cover; border: 2px solid #fff;
+  }
+  .call-info {
+    color: #fff; font-size: 16px; margin-bottom: 20px;
+    font-weight: 500;
+  }
+  #endCallBtn {
+    position: absolute; bottom: 40px;
+    background: #e63946; color: #fff;
+    border: none; padding: 14px 40px;
+    border-radius: 30px; font-size: 16px;
+    font-weight: 600; cursor: pointer;
+    box-shadow: 0 5px 20px rgba(230,57,70,.4);
+  }
+  #endCallBtn:hover { background: #d62828; }
+
+  /* ---------- INCOMING CALL ---------- */
+  .incoming-card {
+    background: #fff; padding: 30px;
+    border-radius: 16px; text-align: center;
+    width: 85%; max-width: 320px;
+    animation: pop .3s ease;
+  }
+  .incoming-card h2 { color: #4a3aff; margin-bottom: 10px; }
+  .incoming-card p { color: #666; margin-bottom: 25px; }
+  .call-buttons { display: flex; gap: 15px; justify-content: center; }
+  .call-buttons button {
+    padding: 12px 30px; border: none;
+    border-radius: 25px; font-size: 15px;
+    font-weight: 600; cursor: pointer;
+    color: #fff; flex: 1;
+  }
+  .accept { background: #2ecc71; }
+  .accept:hover { background: #27ae60; }
+  .reject { background: #e63946; }
+  .reject:hover { background: #d62828; }
+</style>
+</head>
+<body>
+
+<!-- ===== LOGIN SCREEN ===== -->
+<div id="loginScreen" class="screen">
+  <div class="card">
+    <h1>💬 Chat & Call</h1>
+    <label class="label">Aapki ID (ye dost ko dein):</label>
+    <input id="myId" readonly placeholder="Loading...">
+    <p class="hint">Ye ID copy karke apne dost ko bhejein</p>
+
+    <label class="label" style="margin-top:12px;">Dost ki ID yahan likhein:</label>
+    <input id="connectId" placeholder="Friend ki ID paste karein">
+    <button id="connectBtn">Connect</button>
+    <p id="status" class="status">Server se connect ho raha hai...</p>
+  </div>
+</div>
+
+<!-- ===== CHAT SCREEN ===== -->
+<div id="chatScreen" class="screen" style="display:none;">
+  <div class="chat-container">
+    <div class="chat-header">
+      <div>
+        <strong>💬 Chat</strong>
+        <span id="peerIdDisplay"></span>
+      </div>
+      <div>
+        <button id="audioCallBtn" title="Audio Call">📞</button>
+        <button id="videoCallBtn" title="Video Call">📹</button>
+      </div>
+    </div>
+
+    <div id="messages" class="messages"></div>
+
+    <div class="input-area">
+      <button id="fileBtn" title="Image/Video bhejein">📎</button>
+      <input type="file" id="fileInput" accept="image/*,video/*" style="display:none;">
+      <input type="text" id="msgInput" placeholder="Message likhein...">
+      <button id="sendBtn">➤</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== CALL OVERLAY ===== -->
+<div id="callOverlay" class="overlay" style="display:none;">
+  <video id="remoteVideo" autoplay playsinline></video>
+  <video id="localVideo" autoplay playsinline muted></video>
+  <div class="call-info" id="callInfo" style="margin-top:20px;">Calling...</div>
+  <button id="endCallBtn">📴 End Call</button>
+</div>
+
+<!-- ===== INCOMING CALL MODAL ===== -->
+<div id="incomingCallModal" class="overlay" style="display:none;">
+  <div class="incoming-card">
+    <h2>📞 Incoming Call</h2>
+    <p id="incomingText">...</p>
+    <div class="call-buttons">
+      <button id="rejectCallBtn" class="reject">Reject</button>
+      <button id="acceptCallBtn" class="accept">Accept</button>
+    </div>
+  </div>
+</div>
+
+<!-- PeerJS Library -->
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<script>
+/* =========================================================
+   CHAT & CALL APP - Main JavaScript
+   ========================================================= */
+
+// ---------- Elements ----------
+const $ = id => document.getElementById(id);
+const els = {
+  loginScreen: $('loginScreen'), chatScreen: $('chatScreen'),
+  myId: $('myId'), connectId: $('connectId'), connectBtn: $('connectBtn'),
+  status: $('status'), messages: $('messages'),
+  msgInput: $('msgInput'), sendBtn: $('sendBtn'),
+  fileBtn: $('fileBtn'), fileInput: $('fileInput'),
+  audioCallBtn: $('audioCallBtn'), videoCallBtn: $('videoCallBtn'),
+  callOverlay: $('callOverlay'), localVideo: $('localVideo'),
+  remoteVideo: $('remoteVideo'), endCallBtn: $('endCallBtn'),
+  callInfo: $('callInfo'), incomingCallModal: $('incomingCallModal'),
+  incomingText: $('incomingText'), acceptCallBtn: $('acceptCallBtn'),
+  rejectCallBtn: $('rejectCallBtn'), peerIdDisplay: $('peerIdDisplay')
+};
+
+// ---------- State ----------
+let peer, conn, currentCall, localStream, pendingCall, pendingCallType;
+
+// ---------- Initialize PeerJS ----------
+peer = new Peer(undefined, { debug: 1 });
+
+peer.on('open', id => {
+  els.myId.value = id;
+  els.status.textContent = '✅ Ready! Apni ID dost ko dein.';
+});
+
+peer.on('error', err => {
+  console.error('Peer error:', err);
+  els.status.textContent = '❌ Error: ' + err.type;
+});
+
+// Incoming connection (koi aap se connect karna chahta hai)
+peer.on('connection', connection => {
+  if (conn && conn.open) { connection.close(); return; }
+  conn = connection;
+  setupConnection();
+});
+
+// Incoming call
+peer.on('call', call => {
+  pendingCall = call;
+  pendingCallType = call.metadata?.video ? 'video' : 'audio';
+  els.incomingText.textContent =
+    (pendingCallType === 'video' ? '📹 Video Call' : '📞 Audio Call') + ' aa rahi hai...';
+  els.incomingCallModal.style.display = 'flex';
+});
+
+// ---------- Connect Button ----------
+els.connectBtn.onclick = () => {
+  const id = els.connectId.value.trim();
+  if (!id) return alert('Dost ki ID likhein!');
+  if (id === peer.id) return alert('Apni hi ID se connect nahi kar sakte!');
+
+  els.status.textContent = '⏳ Connecting...';
+  conn = peer.connect(id, { reliable: true });
+  setupConnection();
+};
+
+// ---------- Connection Setup ----------
+function setupConnection() {
+  conn.on('open', () => {
+    els.loginScreen.style.display = 'none';
+    els.chatScreen.style.display = 'flex';
+    els.peerIdDisplay.textContent = 'Connected: ' + conn.peer.slice(0, 10) + '...';
+  });
+
+  conn.on('data', handleIncomingData);
+
+  conn.on('close', () => {
+    alert('Dost disconnect ho gaya 😢');
+    resetToLogin();
+  });
+
+  conn.on('error', err => console.error('Conn error:', err));
+}
+
+function resetToLogin() {
+  els.chatScreen.style.display = 'none';
+  els.loginScreen.style.display = 'flex';
+  els.messages.innerHTML = '';
+  endCall(false);
+}
+
+// ---------- Handle Incoming Data ----------
+function handleIncomingData(data) {
+  if (!data || !data.type) return;
+
+  switch (data.type) {
+    case 'text':    addTextMessage(data.text, 'received'); break;
+    case 'image':   addMediaMessage('img', data.data, 'received'); break;
+    case 'video':   addMediaMessage('video', data.data, 'received'); break;
+    case 'call-end': endCall(false); break;
+  }
+}
+
+// ---------- Send Text ----------
+function sendText() {
+  const text = els.msgInput.value.trim();
+  if (!text || !conn || !conn.open) return;
+
+  conn.send({ type: 'text', text });
+  addTextMessage(text, 'sent');
+  els.msgInput.value = '';
+  els.msgInput.focus();
+}
+
+els.sendBtn.onclick = sendText;
+els.msgInput.addEventListener('keypress', e => { if (e.key === 'Enter') sendText(); });
+
+// ---------- Send Files (image/video) ----------
+els.fileBtn.onclick = () => els.fileInput.click();
+
+els.fileInput.onchange = e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (!conn || !conn.open) return alert('Pehle connect karein!');
+
+  if (file.size > 15 * 1024 * 1024) {
+    alert('File 15MB se choti honi chahiye!');
+    els.fileInput.value = '';
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const dataUrl = ev.target.result;
+    if (file.type.startsWith('image/')) {
+      conn.send({ type: 'image', data: dataUrl });
+      addMediaMessage('img', dataUrl, 'sent');
+    } else if (file.type.startsWith('video/')) {
+      conn.send({ type: 'video', data: dataUrl });
+      addMediaMessage('video', dataUrl, 'sent');
+    }
+  };
+  reader.readAsDataURL(file);
+  els.fileInput.value = '';
+};
+
+// ---------- Add messages to UI ----------
+function addTextMessage(text, dir) {
+  const div = document.createElement('div');
+  div.className = 'message ' + dir;
+  div.textContent = text;
+  els.messages.appendChild(div);
+  els.messages.scrollTop = els.messages.scrollHeight;
+}
+
+function addMediaMessage(tag, src, dir) {
+  const div = document.createElement('div');
+  div.className = 'message media ' + dir;
+  const media = document.createElement(tag);
+  media.src = src;
+  if (tag === 'video') media.controls = true;
+  div.appendChild(media);
+  els.messages.appendChild(div);
+  els.messages.scrollTop = els.messages.scrollHeight;
+}
+
+// ---------- Start Call (Outgoing) ----------
+els.audioCallBtn.onclick = () => startCall(false);
+els.videoCallBtn.onclick = () => startCall(true);
+
+async function startCall(video) {
+  if (!conn || !conn.open) return alert('Pehle connect karein!');
+
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ video, audio: true });
+  } catch (err) {
+    alert('Camera/Mic permission deny ho gayi ya available nahi hai.\n\n' + err.message);
+    return;
+  }
+
+  els.localVideo.srcObject = localStream;
+  els.localVideo.style.display = video ? 'block' : 'none';
+  els.remoteVideo.style.display = video ? 'block' : 'none';
+  els.callInfo.textContent = 'Calling...';
+  els.callOverlay.style.display = 'flex';
+
+  currentCall = peer.call(conn.peer, localStream, { metadata: { video } });
+  if (!currentCall) { endCall(false); return; }
+
+  currentCall.on('stream', remoteStream => {
+    els.remoteVideo.srcObject = remoteStream;
+    els.callInfo.textContent = video ? '📹 Video Call Connected' : '📞 Audio Call Connected';
+  });
+
+  currentCall.on('close', () => endCall(false));
+  currentCall.on('error', () => { alert('Call error!'); endCall(false); });
+}
+
+// ---------- Accept Incoming Call ----------
+els.acceptCallBtn.onclick = async () => {
+  els.incomingCallModal.style.display = 'none';
+  const video = pendingCallType === 'video';
+
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ video, audio: true });
+  } catch (err) {
+    alert('Camera/Mic permission chahiye!\n' + err.message);
+    pendingCall.close();
+    pendingCall = null;
+    return;
+  }
+
+  els.localVideo.srcObject = localStream;
+  els.localVideo.style.display = video ? 'block' : 'none';
+  els.remoteVideo.style.display = video ? 'block' : 'none';
+  els.callInfo.textContent = video ? '📹 Video Call Connected' : '📞 Audio Call Connected';
+  els.callOverlay.style.display = 'flex';
+
+  pendingCall.answer(localStream);
+  currentCall = pendingCall;
+  pendingCall = null;
+
+  currentCall.on('stream', remoteStream => {
+    els.remoteVideo.srcObject = remoteStream;
+  });
+  currentCall.on('close', () => endCall(false));
+};
+
+els.rejectCallBtn.onclick = () => {
+  if (pendingCall) { pendingCall.close(); pendingCall = null; }
+  els.incomingCallModal.style.display = 'none';
+};
+
+// ---------- End Call ----------
+els.endCallBtn.onclick = () => endCall(true);
+
+function endCall(notifyPeer) {
+  if (notifyPeer && conn && conn.open) {
+    conn.send({ type: 'call-end' });
+  }
+
+  const call = currentCall;
+  currentCall = null;
+  if (call) { try { call.close(); } catch(e){} }
+
+  if (localStream) {
+    localStream.getTracks().forEach(t => t.stop());
+    localStream = null;
+  }
+
+  els.localVideo.srcObject = null;
+  els.remoteVideo.srcObject = null;
+  els.callOverlay.style.display = 'none';
+  els.incomingCallModal.style.display = 'none';
+  els.callInfo.textContent = 'Calling...';
+}
+</script>
+</body>
+</html>
